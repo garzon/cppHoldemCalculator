@@ -202,6 +202,19 @@ struct PokerRiver {
         }
         return false;
     }
+
+    void genRandomRiver(function<bool(PokerRiver *)> f, shared_ptr<CardPool> cp, int times=100000, int maxDepth=5) {
+        if(numShowed == maxDepth) {
+            f(this);
+            return;
+        }
+        for(int i=0; i<times; i++) {
+            cards[numShowed++] = cp->pick();
+            genRandomRiver(f, cp, 1, maxDepth);
+            numShowed--;
+            cp->put_back();
+        }
+    }
 };
 
 PokerRiver emptyCardRiver;
@@ -238,7 +251,6 @@ struct PokerCombination {
 };
 
 class PokerSuite {
-    CardPool cp;
     int cardNum = 2;
 
     int suitCounter[4];
@@ -254,29 +266,38 @@ class PokerSuite {
     }
 
 public:
+    shared_ptr<CardPool> cp;
     Card cards[7];
 
-    PokerSuite() {
+    PokerSuite(): cp(make_shared<CardPool>()) {
         randomize();
     }
 
-    PokerSuite(const char *suiteStr) {
+    PokerSuite(const char *suiteStr, shared_ptr<CardPool> _cp=nullptr) {
+        if(_cp == nullptr) cp = make_shared<CardPool>();
+        else cp = _cp;
         cards[0] = Card(suiteStr);
         cards[1] = Card(suiteStr+2);
+        cp->pickout(cards[0]);
+        cp->pickout(cards[1]);
         for(int i=4; suiteStr[i]; i+=2) {
             cards[i >> 1] = Card(suiteStr+i);
+            cp->pickout(cards[i >> 1]);
         }
     }
 
-    PokerSuite(Card card1, Card card2) {
+    PokerSuite(Card card1, Card card2, shared_ptr<CardPool> _cp=nullptr) {
+        if(_cp == nullptr) cp = make_shared<CardPool>();
+        else cp = _cp;
         cards[0] = card1;
         cards[1] = card2;
+        cp->pickout(card1);
+        cp->pickout(card2);
     }
 
     void randomize() {
-        cp.recover();
-        cards[0] = cp.pick();
-        cards[1] = cp.pick();
+        cards[0] = cp->pick();
+        cards[1] = cp->pick();
     }
 
     PokerCombination findCombination(const PokerRiver &pr) {
@@ -336,9 +357,12 @@ public:
 };
 
 int main() {
-    PokerSuite mySuite("AsQh"), othersSuite("QdQc");
+    PokerSuite mySuite("AsQh");
+    PokerSuite othersSuite("QdQc", mySuite.cp);
     PokerSuiteProbabilityComparer pspc(mySuite, othersSuite);
-    emptyCardRiver.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
+    PokerRiver pr;
+    //pr.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
+    pr.genRandomRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); }, mySuite.cp);
     pspc.printResult();
     return 0;
 }
