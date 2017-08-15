@@ -15,6 +15,50 @@ struct Card {
 
     Card(): num(0), type(Suit::ANY) {}
     Card(Suit _type, char _num) : type(_type), num(_num) {}
+    Card(const char *cardName) {
+        switch(cardName[0]) {
+        case 'j': case 'J':
+            num = 11;
+            break;
+        case 'q': case 'Q':
+            num = 12;
+            break;
+        case 'K': case 'k':
+            num = 13;
+            break;
+        case '*':
+            num = 0;
+            break;
+        case 'T': case 't':
+            num = 10;
+            break;
+        case 'a': case 'A':
+            num = 1;
+            break;
+        default:
+            if(cardName[0] > '1' && cardName[0] <= '9') {
+                num = cardName[0] - '0';
+                break;
+            }
+            throw "Invalid number";
+        }
+        switch(cardName[1]) {
+        case '1': case 'd': case 'D':
+            type = Card::Suit::DIAMOND;
+            break;
+        case '2': case 'c': case 'C':
+            type = Card::Suit::CLUB;
+            break;
+        case '3': case 'h': case 'H':
+            type = Card::Suit::HEART;
+            break;
+        case '4': case 'S': case 's':
+            type = Card::Suit::SPADE;
+            break;
+        default:
+            throw "Invalid suit";
+        }
+    }
 
 #define GEN_REAL_NUM(x) (((x)+11)%13)
 // A, 2, 3 .. Q, K -> 12, 0, 1 .. 10, 11
@@ -61,8 +105,12 @@ public:
             }
         }
 
-        bool operator ==(const iterator &i) const {
-            return p == i.p;
+        bool operator !=(const iterator &i) const {
+            return !(p == i.p);
+        }
+
+        inline Card operator *() const {
+            return p;
         }
     };
     SeqGenerator::iterator begin() const {
@@ -73,51 +121,8 @@ public:
     }
 };
 
-Card operator "" _card(const char *cardName) {
-    Card::Suit type; char num;
-    switch(cardName[0]) {
-    case 'j': case 'J':
-        num = 11;
-        break;
-    case 'q': case 'Q':
-        num = 12;
-        break;
-    case 'K': case 'k':
-        num = 13;
-        break;
-    case '*':
-        num = 0;
-        break;
-    case 'T': case 't':
-        num = 10;
-        break;
-    case 'a': case 'A':
-        num = 1;
-        break;
-    default:
-        if(cardName[0] > '1' && cardName[0] <= '9') {
-            num = cardName[0] - '0';
-            break;
-        }
-        throw "Invalid number";
-    }
-    switch(cardName[1]) {
-    case '1': case 'd': case 'D':
-        type = Card::Suit::DIAMOND;
-        break;
-    case '2': case 'c': case 'C':
-        type = Card::Suit::CLUB;
-        break;
-    case '3': case 'h': case 'H':
-        type = Card::Suit::HEART;
-        break;
-    case '4': case 'S': case 's':
-        type = Card::Suit::SPADE;
-        break;
-    default:
-        throw "Invalid suit";
-    }
-    return Card{type, num};
+inline Card operator "" _card(const char *cardName) {
+    return Card(cardName);
 }
 
 random_device rd;
@@ -137,7 +142,8 @@ class CardPool {
 public:
     CardPool(): realUpperBound(51) {
         int ind = 0;
-        for(Card a: SeqGenerator()) {
+        SeqGenerator seq;
+        for(Card a: seq) {
             cards[ind++] = a;
         }
         assert(ind == realUpperBound + 1);
@@ -171,14 +177,18 @@ public:
     }
 };
 
-class CardRiver {
-    inline bool hasCard(Card a, int showedCard=numShowed) {
+struct PokerRiver {
+    Card cards[5];
+    int numShowed = 0;
+
+    inline bool hasCard(Card a, int showedCard=-1) {
+        if(showedCard == -1) showedCard = numShowed;
         for(int i=0; i<showedCard; i++)
             if(cards[i] == a) return true;
         return false;
     }
 
-    bool genRiver(function<bool(CardRiver *)> f, int maxDepth=5) {
+    bool genRiver(function<bool(PokerRiver *)> f, int maxDepth=5) {
         if(numShowed == maxDepth) {
             if(f(this)) return true;
             return false;
@@ -192,14 +202,11 @@ class CardRiver {
         }
         return false;
     }
-public:
-    Card cards[5];
-    int numShowed = 0;
 };
 
-CardRiver emptyCardRiver;
+PokerRiver emptyCardRiver;
 
-struct CardCombination {
+struct PokerCombination {
     enum class Combination: char {
         STRAIGHT_FLUSH = 9,
         KIND_OF_4 = 8,
@@ -216,7 +223,7 @@ struct CardCombination {
     Combination comb;
     int numOfParts;
 
-    bool operator < (const CardCombination &o) {
+    bool operator < (const PokerCombination &o) {
         if(comb > o.comb) return false;
         if(comb < o.comb) return true;
         return numOfParts < o.numOfParts;
@@ -230,9 +237,8 @@ struct CardCombination {
     }
 };
 
-class CardSuite {
+class PokerSuite {
     CardPool cp;
-    Card cards[7];
     int cardNum = 2;
 
     int suitCounter[4];
@@ -248,11 +254,21 @@ class CardSuite {
     }
 
 public:
-    CardSuite() {
+    Card cards[7];
+
+    PokerSuite() {
         randomize();
     }
 
-    CardSuite(Card card1, Card card2) {
+    PokerSuite(const char *suiteStr) {
+        cards[0] = Card(suiteStr);
+        cards[1] = Card(suiteStr+2);
+        for(int i=4; suiteStr[i]; i+=2) {
+            cards[i >> 1] = Card(suiteStr+i);
+        }
+    }
+
+    PokerSuite(Card card1, Card card2) {
         cards[0] = card1;
         cards[1] = card2;
     }
@@ -263,16 +279,16 @@ public:
         cards[1] = cp.pick();
     }
 
-    CardCombination findCombination(const CardRiver &cr) {
-        for(int i=0; i<cr.numShowed; i++) {
-            cards[i+2] = cr.cards[i];
+    PokerCombination findCombination(const PokerRiver &pr) {
+        for(int i=0; i<pr.numShowed; i++) {
+            cards[i+2] = pr.cards[i];
         }
-        cardNum += cr.numShowed;
+        cardNum += pr.numShowed;
         calcCommon();
         // TODO
         cardNum = 2;
     }
-
+/*
     inline int hasFlush() const {
         return suitCounter[0] >= 5 || suitCounter[1] >= 5 || suitCounter[2] >= 5 || suitCounter[3] >= 5;
     }
@@ -281,30 +297,29 @@ public:
         if(!hasStraight()) return false;
         if(!hasFlush()) return false;
 
-    }
+    }*/
 };
 
-CardSuite operator "" _cards(const char *cardName) {
-    CardSuite ret(operator "" _card(cardName), operator "" _card(cardName+2));
-    for(int i=4; cardName[i]; i+=2) {
-        ret[i >> 1] = operator "" _card(cardName+i);
-    }
-    return ret;
+
+inline PokerSuite operator "" _cards(const char *cardName) {
+    return PokerSuite(cardName);
 }
 
-class SuiteProbabilityComparer {
-    CardSuite mySuite, othersSuite;
+class PokerSuiteProbabilityComparer {
+    PokerSuite mySuite, othersSuite;
 public:
     int myWinings, myLoses, tot;
 
-    SuiteProbabilityComparer(CardSuite _mySuite, CardSuite _othersSuite):
+    PokerSuiteProbabilityComparer() {}
+
+    PokerSuiteProbabilityComparer(PokerSuite _mySuite, PokerSuite _othersSuite):
         mySuite(_mySuite), othersSuite(_othersSuite)
     {}
 
-    bool compare(CardRiver *cr) {
+    bool compare(PokerRiver *pr) {
         tot += 1;
-        CardCombination &&myCC = mySuite.findCombination(*cr);
-        CardCombination &&othersCC = othersSuite.findCombination(*cr);
+        PokerCombination &&myCC = mySuite.findCombination(*pr);
+        PokerCombination &&othersCC = othersSuite.findCombination(*pr);
         if(myCC < othersCC) myLoses++;
         else {
             if(othersCC < myCC) myWinings++;
@@ -321,8 +336,9 @@ public:
 };
 
 int main() {
-    SuiteProbabilityComparer spc("AsQh"_cards, "QdQc"_cards);
-    emptyCardRiver.genRiver(spc.compare);
-    spc.printResult();
+    PokerSuite mySuite("AsQh"), othersSuite("QdQc");
+    PokerSuiteProbabilityComparer pspc(mySuite, othersSuite);
+    emptyCardRiver.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
+    pspc.printResult();
     return 0;
 }
