@@ -59,16 +59,30 @@ public:
         cardNum = 2;
     }
 
-    PokerCombination findCombination(const PokerRiver &pr) {
+    PokerCombination findCombinationWithRiver(const PokerRiver &pr) {
+        addRiver(pr);
+        auto ret = findCombination();
+        dropRiver(pr.getCardNum());
+        return ret;
+    }
+
+    void addRiver(const PokerRiver &pr) {
         for(int i=0; i<pr.getCardNum(); i++) {
             cards[cardNum+i] = pr.cards[i];
         }
         cardNum += pr.getCardNum();
         calcCommon();
+    }
+
+    void dropRiver(int riverSize=5) {
+        cardNum -= riverSize;
+    }
+
+    PokerCombination findCombination() {
+        calcCommon();
 
         int highest, flushType;
         if(highest = hasStraightFlush()) {
-            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::STRAIGHT_FLUSH, highest);
         }
         if(highest = hasKindOfN(4)) {
@@ -78,13 +92,11 @@ public:
                 if(!second) second = hasKindOfN(2);
                 if(!second) second = hasKindOfN(1);
             }
-            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::KIND_OF_4, highest, second);
         }
         if(highest = hasKindOfN(3)) {
             int second;
             if((second = hasKindOfN(3, GEN_REAL_NUM(highest)-1)) || (second = hasKindOfN(2))) {
-                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::FULL_HOUSE, highest, second);
             }
         }
@@ -99,11 +111,9 @@ public:
                 int pNum = RECOVER_FROM_REAL_NUM(i);
                 if(ifExists[pNum]) nums[curr++] = pNum;
             }
-            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::FLUSH, nums[0], nums[1], nums[2], nums[3], nums[4]);
         }
         if(highest = hasStraight()) {
-            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::STRAIGHT, highest);
         }
         if(highest = hasKindOfN(3)) {
@@ -112,7 +122,6 @@ public:
                 second = hasKindOfN(1);
             if(cardNum >= 5)
                 third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
-            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::KIND_OF_3, highest, second, third);
         }
         if(highest = hasKindOfN(2)) {
@@ -122,14 +131,12 @@ public:
                 if(cardNum >= 5) {
                     if(!(third = hasKindOfN(2, GEN_REAL_NUM(second)-1))) third = hasKindOfN(1);
                 }
-                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::TWO_PAIRS, highest, second, third);
             } else {
                 // one pair
                 if(cardNum >= 3) second = hasKindOfN(1);
                 if(cardNum >= 4) third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
                 if(cardNum >= 5) forth = hasKindOfN(1, GEN_REAL_NUM(third)-1);
-                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::PAIR, highest, second, third, forth);
             }
         }
@@ -139,7 +146,6 @@ public:
         if(cardNum >= 3) third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
         if(cardNum >= 4) forth = hasKindOfN(1, GEN_REAL_NUM(third)-1);
         if(cardNum >= 5) fifth = hasKindOfN(1, GEN_REAL_NUM(forth)-1);
-        cardNum -= pr.getCardNum();
         return PokerCombination(PokerCombination::Combination::HIGH, highest, second, third, forth, fifth);
     }
 
@@ -149,13 +155,6 @@ public:
             if(numCounter[pNum] == num) return pNum;
         }
         return 0;
-    }
-
-    inline int hasFlush() const {
-        return suitCounter[4] >= 5 ? 4 : (
-                suitCounter[1] >= 5 ? 1 : (
-                 suitCounter[2] >= 5 ? 2 : (
-                   suitCounter[3] >= 5 ? 3 : 0)));
     }
 
     static int checkStraight(const char *numCount) {
@@ -176,6 +175,13 @@ public:
         return checkStraight(numCounter);
     }
 
+    inline int hasFlush() const {
+        return suitCounter[4] >= 5 ? 4 : (
+                suitCounter[1] >= 5 ? 1 : (
+                 suitCounter[2] >= 5 ? 2 : (
+                   suitCounter[3] >= 5 ? 3 : 0)));
+    }
+
     int hasStraightFlush() const {
         int flushType, highest;
         if(!(flushType = hasFlush())) return false;
@@ -190,6 +196,45 @@ public:
         }
 
         return checkStraight(ifExists);
+    }
+
+    inline bool has4OfAKind() const {
+        return hasKindOfN(4);
+    }
+
+    inline bool has3OfAKind() const {
+        return has4OfAKind() || hasKindOfN(3);
+    }
+
+    inline bool hasFullHouse() const {
+        // 43 or 421 or 32X or 331
+        if(has4OfAKind() && (hasKindOfN(3) || hasKindOfN(2))) return true;
+        int high = hasKindOfN(3);
+        if(!high) return false;
+        return hasKindOfN(3, GEN_REAL_NUM(high)-1) || hasKindOfN(2);
+    }
+
+    inline bool hasPair() const {
+        return hasKindOfN(2) || has3OfAKind();
+    }
+
+    inline bool hasTwoPairs() const {
+        if(hasFullHouse()) return true;
+        if(has3OfAKind()) {
+            // 3 of a kind but not fullhouse, means no pair, so only 3334444 satisfies
+            return has4OfAKind();
+        }
+        // no 3 of a kind
+        int high = hasKindOfN(2);
+        if(!high) return false; // no pair
+        if(!hasKindOfN(2, GEN_REAL_NUM(high)-1)) {
+            // one pair with 4 of a kind is also ok
+            return has4OfAKind();
+        } else {
+            // real two pairs
+            return true;
+        }
+        return false;
     }
 };
 

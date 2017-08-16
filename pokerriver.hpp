@@ -8,7 +8,6 @@
 #include "seqgenerator.hpp"
 #include "cardpool.hpp"
 
-
 struct PokerRiver: public Cards {
 
     inline bool hasCard(Card a, int showedCard=-1) const {
@@ -18,29 +17,29 @@ struct PokerRiver: public Cards {
         return false;
     }
 
-    bool genRiver(std::function<bool(PokerRiver *)> f, int maxDepth=5, Card st={Card::Suit::DIAMOND, 2}) {
+    bool genRiver(std::function<bool(PokerRiver*)> callback, int maxDepth=5, Card st={Card::Suit::DIAMOND, 2}) {
         if(cardNum == maxDepth) {
-            if(f(this)) return true;
+            if(callback(this)) return true;
             return false;
         }
         for(Card a: SeqGenerator(st)) {
             if(hasCard(a)) continue;
             cards[cardNum++] = a;
-            bool ret = genRiver(f, maxDepth, ++a);
+            bool ret = genRiver(callback, maxDepth, ++a);
             cardNum--;
             if(ret) return true;
         }
         return false;
     }
 
-    void genRandomRiver(std::function<bool(PokerRiver *)> f, std::shared_ptr<CardPool> cp, int times=100000, int maxDepth=5) {
+    void genRandomRiver(std::function<bool(PokerRiver*)> callback, std::shared_ptr<CardPool> cp, int times=100000, int maxDepth=5) {
         if(cardNum == maxDepth) {
-            f(this);
+            callback(this);
             return;
         }
         for(int i=0; i<times; i++) {
             cards[cardNum++] = cp->pick();
-            genRandomRiver(f, cp, 1, maxDepth);
+            genRandomRiver(callback, cp, 1, maxDepth);
             cardNum--;
             cp->put_back();
         }
