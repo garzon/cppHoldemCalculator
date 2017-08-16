@@ -55,6 +55,9 @@ void runTestCases() {
     assert(PokerSuite("2d3d4dAdKdTd6d").findCombination(emptyPokerRiver) == PokerCombination(PokerCombination::Combination::FLUSH, 1, 13, 10, 6, 4));
     assert(PokerSuite("2d3d4dAdKd6d5d").findCombination(emptyPokerRiver) == PokerCombination(PokerCombination::Combination::STRAIGHT_FLUSH, 6));
     assert(PokerSuite("TdJd4dAdKd6dQd").findCombination(emptyPokerRiver) == PokerCombination(PokerCombination::Combination::STRAIGHT_FLUSH, 1));
+
+    assert(PokerSuite("AdAcAh2d2c2h3s").findCombination(emptyPokerRiver) == PokerCombination(PokerCombination::Combination::FULL_HOUSE, 1, 2));
+    assert(PokerSuite("AdAcAh2d2c2h2s").findCombination(emptyPokerRiver) == PokerCombination(PokerCombination::Combination::KIND_OF_4, 2, 1));
     cout << "ok" << endl;
 }
 
@@ -65,29 +68,29 @@ bool printRiverTester(PokerRiver *pr) {
     return false;
 }
 
-int main() {
-    runTestCases();
-
-    shared_ptr<CardPool> cp = make_shared<CardPool>();
+void printRandomRiver() {
     PokerRiver pr;
-    //pr.genRandomRiver(printRiverTester, cp, 20);
-    //return 0;
+    shared_ptr<CardPool> cp = make_shared<CardPool>();
+    pr.genRandomRiver(printRiverTester, cp, 20);
+}
 
-    PokerSuite mySuite("AsQh", cp);
-    PokerSuite othersSuite("JdJc", cp);
+void printCompareResult(PokerSuite mySuite, PokerSuite othersSuite) {
+    PokerRiver pr;
     PokerSuiteProbabilityComparer pspc(mySuite, othersSuite);
-
     pr.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
     pspc.printResult();
-    pspc.reset();
+}
 
-    pspc = {{"AsAd"},{"KhKd"}};
-    pr.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
-    pspc.printResult();
-    pspc.reset();
+int main() {
+    //runTestCases();
+    //printRandomRiver();
 
-    //pr.genRandomRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); }, cp);
-    //pspc.printResult();
+
+    printCompareResult({"AsQh"},{"QcQd"});
+    printCompareResult({"AsQh"},{"QcQs"});
+    printCompareResult({"AsAd"},{"KhKd"});
+    printCompareResult({"AcQd"},{"3s7s"});
+    printCompareResult({"AcQd"},{"3s7h"});
 
     return 0;
 }

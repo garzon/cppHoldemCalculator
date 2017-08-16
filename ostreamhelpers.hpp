@@ -8,8 +8,8 @@
 #include "pokerriver.hpp"
 
 static const char *typeName[] = {
-    "unknown", "high", "pair", "two_pairs", "one_kind_of_3",
-    "straight", "flush", "fullhouse", "one_kind_of_4", "straight_flush"
+    "unknown", "high", "pair", "two_pairs", "3_of_a_kind",
+    "straight", "flush", "fullhouse", "4_of_a_kind", "straight_flush"
 };
 
 std::ostream & operator << (std::ostream &os, const Card &c) {
