@@ -111,17 +111,14 @@ void runTestCases() {
     cout << "ok" << endl;
 }
 
-PokerSuite emptyPokerSuite;
-
-bool printRiverTester(PokerRiver *pr) {
-    cout << *pr << " " << emptyPokerSuite.findCombinationWithRiver(*pr) << endl;
-    return false;
-}
-
 void printRandomRiver() {
     PokerRiver pr;
+    PokerSuite emptyPokerSuite;
     shared_ptr<CardPool> cp = make_shared<CardPool>();
-    pr.genRandomRiver(printRiverTester, cp, 20);
+    pr.genRandomRiver([&emptyPokerSuite](PokerRiver *pr) {
+        cout << *pr << " " << emptyPokerSuite.findCombinationWithRiver(*pr) << endl;
+        return false;
+    }, cp, 20);
 }
 
 #define CALLBACK_EXP(riverCallable) [&riverCallable](PokerRiver *pr) { return riverCallable.callback(pr); }
@@ -175,7 +172,7 @@ void interact() {
 
 int main() {
     runTestCases();
-    //printRandomRiver();
+    printRandomRiver();
 
     /*
     printCompareResult({"AsQh"},{{"QcQd"}});

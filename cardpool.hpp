@@ -4,10 +4,10 @@
 #include <random>
 #include "card.hpp"
 
-std::random_device rd;
-std::mt19937 mt;
-
 class CardPool {
+    std::random_device rd;
+    //std::mt19937 mt;
+
     int realUpperBound;
     Card cards[52];
 
@@ -42,7 +42,7 @@ public:
     }
 
     Card pick() {
-        int rndNum = std::uniform_int_distribution<>(0, realUpperBound)(mt);
+        int rndNum = std::uniform_int_distribution<>(0, realUpperBound)(rd);
         auto p = &(cards[rndNum]);
         Card ret = *p;
         swap_back(p);
