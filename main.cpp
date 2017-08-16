@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <assert.h>
 
 #include "pokerriver.hpp"
@@ -9,15 +10,25 @@
 using namespace std;
 
 class PokerSuiteProbabilityComparer {
-    PokerSuite mySuite, othersSuite;
+    PokerSuite mySuite;
+    shared_ptr<vector<PokerSuite>> othersSuite = nullptr;
 public:
     int myWinings = 0, myLoses = 0, tot = 0;
 
     PokerSuiteProbabilityComparer() {}
 
-    PokerSuiteProbabilityComparer(PokerSuite _mySuite, PokerSuite _othersSuite):
+    PokerSuiteProbabilityComparer(const PokerSuite &_mySuite, const PokerSuite &_othersSuite):
+        mySuite(_mySuite)
+    {
+        othersSuite = make_shared<vector<PokerSuite>>();
+        othersSuite->emplace_back(_othersSuite);
+    }
+
+    PokerSuiteProbabilityComparer(const PokerSuite &_mySuite, shared_ptr<vector<PokerSuite>> _othersSuite=nullptr):
         mySuite(_mySuite), othersSuite(_othersSuite)
-    {}
+    {
+        if(othersSuite.get() == nullptr) othersSuite = make_shared<vector<PokerSuite>>();
+    }
 
     void reset() {
         myWinings = 0, myLoses = 0, tot = 0;
@@ -25,12 +36,19 @@ public:
 
     bool compare(PokerRiver *pr) {
         tot += 1;
-        PokerCombination &&myCC = mySuite.findCombination(*pr);
-        PokerCombination &&othersCC = othersSuite.findCombination(*pr);
-        if(myCC < othersCC) myLoses++;
-        else {
-            if(othersCC < myCC) myWinings++;
+        PokerCombination myCC = mySuite.findCombination(*pr);
+        bool isWin = true;
+        for(PokerSuite &ps: *othersSuite) {
+            PokerCombination othersCC = ps.findCombination(*pr);
+            if(myCC < othersCC) {
+                myLoses++;
+            }
+            if(!(othersCC < myCC)) {
+                isWin = false;
+                break;
+            }
         }
+        if(isWin) myWinings++;
         return false;
     }
 
@@ -81,16 +99,71 @@ void printCompareResult(PokerSuite mySuite, PokerSuite othersSuite) {
     pspc.printResult();
 }
 
+void printCompareResult(PokerRiver pr, PokerSuite mySuite, vector<PokerSuite> othersSuite) {
+    PokerSuiteProbabilityComparer pspc(mySuite, shared_ptr<vector<PokerSuite>>(&othersSuite));
+    pr.genRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); });
+    pspc.printResult();
+}
+
+void calc_a_round(PokerSuite &mySuite, PokerRiver &pr, int &wins, int &loses, int &tot, int winNTimes = 1) {
+    auto othersSuites = make_shared<vector<PokerSuite>>();
+    for(int i=0; i<winNTimes; i++)
+        othersSuites->emplace_back(mySuite.cp);
+    for(int i=0; i<=1000; i++) {
+        for(PokerSuite &ps: *othersSuites) ps.randomize();
+        PokerSuiteProbabilityComparer pspc(mySuite, othersSuites);
+        pr.genRandomRiver([&pspc](PokerRiver *pr) { return pspc.compare(pr); }, mySuite.cp, 500);
+        wins += pspc.myWinings;
+        loses += pspc.myLoses;
+        tot += pspc.tot;
+        mySuite.cp->put_back(2 * winNTimes);
+    }
+}
+
+void print_and_reset_result(int &wins, int &loses, int &tot) {
+    cout << wins*1.0/tot << " " << loses*1.0/tot << endl;
+    wins = loses = tot = 0;
+}
+
+void interact() {
+    string inp; int people;
+    cout << "#people: ";
+    cin >> people;
+    people--;
+
+    cout << "Init: ";
+    cin >> inp;
+    shared_ptr<CardPool> cp = make_shared<CardPool>();
+    PokerSuite mySuite(inp.c_str(), cp);
+    PokerRiver pr;
+    int wins, loses, tot;
+#define DO_A_ROUND wins = loses = tot = 0; calc_a_round(mySuite, pr, wins, loses, tot, people); print_and_reset_result(wins, loses, tot)
+    DO_A_ROUND;
+
+#define ROUND(x) cout << x << ": "; cin >> inp; pr.push(Cards(inp.c_str())); DO_A_ROUND
+    ROUND("Flop");
+    ROUND("Turn");
+    ROUND("Final");
+}
+
+
 int main() {
-    //runTestCases();
+    runTestCases();
     //printRandomRiver();
 
+    /*
+    printCompareResult({"AsQh"},{{"QcQd"}});
+    printCompareResult({"AsQh"},{{"QcQs"}});
+    printCompareResult({"AsAd"},{{"KhKd"}});
+    printCompareResult({"AcQd"},{{"3s7s"}});
+    printCompareResult({"AcQd"},{{"3s7h"}});
+    */
 
-    printCompareResult({"AsQh"},{"QcQd"});
-    printCompareResult({"AsQh"},{"QcQs"});
-    printCompareResult({"AsAd"},{"KhKd"});
-    printCompareResult({"AcQd"},{"3s7s"});
-    printCompareResult({"AcQd"},{"3s7h"});
+
+    while(1) {
+        interact();
+        cout << endl;
+    }
 
     return 0;
 }

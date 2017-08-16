@@ -5,6 +5,7 @@
 
 #include "card.hpp"
 #include "pokercombination.hpp"
+#include "pokersuite.hpp"
 #include "pokerriver.hpp"
 
 static const char *typeName[] = {
@@ -31,8 +32,14 @@ std::ostream & operator << (std::ostream &os, const PokerCombination &pc) {
     return os << ")." << std::endl;
 }
 
+std::ostream & operator << (std::ostream &os, const PokerSuite &ps) {
+    for(int i=0; i<ps.getCardNum(); i++)
+        os << ps.cards[i] << " ";
+    return os << std::endl;
+}
+
 std::ostream & operator << (std::ostream &os, const PokerRiver &pr) {
-    for(int i=0; i<5; i++)
+    for(int i=0; i<pr.getCardNum(); i++)
         os << pr.cards[i] << " ";
     return os << std::endl;
 }

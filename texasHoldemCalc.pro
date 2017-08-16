@@ -14,5 +14,6 @@ HEADERS += \
     seqgenerator.hpp \
     cardpool.hpp \
     pokerriver.hpp \
+    pokercombination.hpp \
     pokersuite.hpp \
-    pokercombination.hpp
+    cards.hpp

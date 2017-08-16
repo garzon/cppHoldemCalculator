@@ -4,12 +4,12 @@
 #include <memory>
 #include <utility>
 
+#include "cards.hpp"
 #include "cardpool.hpp"
 #include "pokerriver.hpp"
 #include "pokercombination.hpp"
 
-class PokerSuite {
-    char cardNum = 0;
+class PokerSuite: public Cards {
 
     char suitCounter[5];
     char numCounter[15];
@@ -27,27 +27,18 @@ class PokerSuite {
 
 public:
     std::shared_ptr<CardPool> cp;
-    Card cards[7];
 
     PokerSuite(std::shared_ptr<CardPool> _cp=nullptr): cp(_cp) {
         if(cp.get() == nullptr) cp = std::make_shared<CardPool>();
         //randomize();
     }
 
-    PokerSuite(const char *suiteStr, std::shared_ptr<CardPool> _cp=nullptr): cp(_cp) {
-        // at least 2 cards in suite anytime
-        cards[0] = Card(suiteStr);
-        cards[1] = Card(suiteStr+2);
-        cardNum = 2;
+    PokerSuite(const char *suiteStr, std::shared_ptr<CardPool> _cp=nullptr): Cards(suiteStr), cp(_cp) {
         bool doPickout = cp.get() != nullptr;
         if(doPickout) {
-            cp->pickout(cards[0]);
-            cp->pickout(cards[1]);
-        }
-        for(int i=4; suiteStr[i]; i+=2) {
-            cards[i >> 1] = Card(suiteStr+i);
-            if(doPickout) cp->pickout(cards[i >> 1]);
-            cardNum++;
+            for(Card c: *this) {
+                cp->pickout(c);
+            }
         }
     }
 
@@ -65,18 +56,19 @@ public:
         assert(cp.get() != nullptr);
         cards[0] = cp->pick();
         cards[1] = cp->pick();
+        cardNum = 2;
     }
 
     PokerCombination findCombination(const PokerRiver &pr) {
-        for(int i=0; i<pr.numShowed; i++) {
+        for(int i=0; i<pr.getCardNum(); i++) {
             cards[cardNum+i] = pr.cards[i];
         }
-        cardNum += pr.numShowed;
+        cardNum += pr.getCardNum();
         calcCommon();
 
         int highest, flushType;
         if(highest = hasStraightFlush()) {
-            cardNum -= pr.numShowed;
+            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::STRAIGHT_FLUSH, highest);
         }
         if(highest = hasKindOfN(4)) {
@@ -86,13 +78,13 @@ public:
                 if(!second) second = hasKindOfN(2);
                 if(!second) second = hasKindOfN(1);
             }
-            cardNum -= pr.numShowed;
+            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::KIND_OF_4, highest, second);
         }
         if(highest = hasKindOfN(3)) {
             int second;
             if((second = hasKindOfN(3, GEN_REAL_NUM(highest)-1)) || (second = hasKindOfN(2))) {
-                cardNum -= pr.numShowed;
+                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::FULL_HOUSE, highest, second);
             }
         }
@@ -107,11 +99,11 @@ public:
                 int pNum = RECOVER_FROM_REAL_NUM(i);
                 if(ifExists[pNum]) nums[curr++] = pNum;
             }
-            cardNum -= pr.numShowed;
+            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::FLUSH, nums[0], nums[1], nums[2], nums[3], nums[4]);
         }
         if(highest = hasStraight()) {
-            cardNum -= pr.numShowed;
+            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::STRAIGHT, highest);
         }
         if(highest = hasKindOfN(3)) {
@@ -120,7 +112,7 @@ public:
                 second = hasKindOfN(1);
             if(cardNum >= 5)
                 third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
-            cardNum -= pr.numShowed;
+            cardNum -= pr.getCardNum();
             return PokerCombination(PokerCombination::Combination::KIND_OF_3, highest, second, third);
         }
         if(highest = hasKindOfN(2)) {
@@ -130,14 +122,14 @@ public:
                 if(cardNum >= 5) {
                     if(!(third = hasKindOfN(2, GEN_REAL_NUM(second)-1))) third = hasKindOfN(1);
                 }
-                cardNum -= pr.numShowed;
+                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::TWO_PAIRS, highest, second, third);
             } else {
                 // one pair
                 if(cardNum >= 3) second = hasKindOfN(1);
                 if(cardNum >= 4) third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
                 if(cardNum >= 5) forth = hasKindOfN(1, GEN_REAL_NUM(third)-1);
-                cardNum -= pr.numShowed;
+                cardNum -= pr.getCardNum();
                 return PokerCombination(PokerCombination::Combination::PAIR, highest, second, third, forth);
             }
         }
@@ -147,7 +139,7 @@ public:
         if(cardNum >= 3) third = hasKindOfN(1, GEN_REAL_NUM(second)-1);
         if(cardNum >= 4) forth = hasKindOfN(1, GEN_REAL_NUM(third)-1);
         if(cardNum >= 5) fifth = hasKindOfN(1, GEN_REAL_NUM(forth)-1);
-        cardNum -= pr.numShowed;
+        cardNum -= pr.getCardNum();
         return PokerCombination(PokerCombination::Combination::HIGH, highest, second, third, forth, fifth);
     }
 

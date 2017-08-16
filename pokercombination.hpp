@@ -26,13 +26,11 @@ struct PokerCombination {
             GEN_REAL_NUM(fourth) * NUM_COUNT + GEN_REAL_NUM(fifth);
     }
 
-    bool operator < (const PokerCombination &o) const {
-        //if(comb > o.comb) return false;
-        //if(comb < o.comb) return true;
+    inline bool operator < (const PokerCombination &o) const {
         return numOfParts < o.numOfParts;
     }
 
-    bool operator == (const PokerCombination &o) const {
+    inline bool operator == (const PokerCombination &o) const {
         return numOfParts == o.numOfParts;
     }
 };
