@@ -7,3 +7,12 @@ SOURCES += main.cpp
 
 DISTFILES += \
     .gitignore
+
+HEADERS += \
+    card.hpp \
+    ostreamhelpers.hpp \
+    seqgenerator.hpp \
+    cardpool.hpp \
+    pokerriver.hpp \
+    pokersuite.hpp \
+    pokercombination.hpp
