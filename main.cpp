@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <assert.h>
+#include <map>
 
 #include "pokerriver.hpp"
 #include "pokersuite.hpp"
@@ -112,76 +113,112 @@ void runTestCases() {
 }
 
 void printRandomRiver() {
-    PokerRiver pr;
-    PokerSuite emptyPokerSuite;
     shared_ptr<CardPool> cp = make_shared<CardPool>();
+    PokerRiver pr(cp);
+    PokerSuite emptyPokerSuite;
     pr.genRandomRiver([&emptyPokerSuite](PokerRiver *pr) {
         cout << *pr << " " << emptyPokerSuite.findCombinationWithRiver(*pr) << endl;
         return false;
-    }, cp, 20);
+    }, 20);
 }
 
 #define CALLBACK_EXP(riverCallable) [&riverCallable](PokerRiver *pr) { return riverCallable.callback(pr); }
 
-void printCompareResult(PokerSuite mySuite, PokerSuite othersSuite) {
-    PokerRiver pr;
+void printCompareResult(PokerSuite mySuite, PokerSuite othersSuite, shared_ptr<PokerRiver> pr=nullptr) {
+    if(pr.get() == nullptr) {
+        pr = make_shared<PokerRiver>(make_shared<CardPool>());
+    }
+    pr->cp->pickout(mySuite);
+    pr->cp->pickout(othersSuite);
     PokerSuiteProbabilityComparer pspc(mySuite, {othersSuite});
-    pr.genRiver(CALLBACK_EXP(pspc));
+    pr->genRiver(CALLBACK_EXP(pspc));
+    pr->cp->put_back(mySuite.getCardNum());
+    pr->cp->put_back(othersSuite.getCardNum());
     pspc.printResult();
 }
 
 void calc_a_round(PokerSuite &mySuite, PokerRiver &pr, int &wins, int &loses, int &tot, int winNTimes = 1) {
     auto othersSuites = make_shared<vector<PokerSuite>>();
     for(int i=0; i<winNTimes; i++)
-        othersSuites->emplace_back(mySuite.cp);
-    for(int i=0; i<=2000; i++) {
+        othersSuites->emplace_back(pr.cp);
+    for(int i=0; i<=400; i++) {
         for(PokerSuite &ps: *othersSuites) ps.randomize();
         PokerSuiteProbabilityComparer pspc(mySuite, othersSuites);
-        pr.genRandomRiver(CALLBACK_EXP(pspc), mySuite.cp, 1000);
+        pr.genRandomRiver(CALLBACK_EXP(pspc), 400);
         wins += pspc.myWinings;
         loses += pspc.myLoses;
         tot += pspc.tot;
-        mySuite.cp->put_back(2 * winNTimes);
+        pr.cp->put_back(2 * winNTimes);
     }
-    CombinationProbabilityCalculator cpc(mySuite);
-    pr.genRandomRiver(CALLBACK_EXP(cpc), mySuite.cp, 1000000);
-    cpc.printResult();
+    /*CombinationProbabilityCalculator cpc(mySuite);
+    pr.genRandomRiver(CALLBACK_EXP(cpc), 1000000);
+    cpc.printResult();*/
 }
 
 void interact() {
-    string inp; int people;
-    cout << "#people: ";
-    cin >> people;
-    people--;
+    string inp;
 
     cout << "Init: ";
     cin >> inp;
     shared_ptr<CardPool> cp = make_shared<CardPool>();
     PokerSuite mySuite(inp.c_str(), cp);
-    PokerRiver pr;
+    PokerRiver pr(cp);
     int wins, loses, tot;
-#define DO_A_ROUND wins = loses = tot = 0; calc_a_round(mySuite, pr, wins, loses, tot, people); cout << wins*1.0/tot << " " << loses*1.0/tot << endl
+#define DO_A_ROUND wins = loses = tot = 0; calc_a_round(mySuite, pr, wins, loses, tot); cout << wins*1.0/tot << " " << loses*1.0/tot << endl
     DO_A_ROUND;
 
-#define ROUND(x) cout << x << ": "; cin >> inp; pr.push(Cards(inp.c_str())); DO_A_ROUND
+#define ROUND(x) cout << x << ": "; cin >> inp; if(inp == "x") return; pr.push(Cards(inp.c_str())); DO_A_ROUND
     ROUND("Flop");
     ROUND("Turn");
     ROUND("Final");
 }
 
+pair<double, double> printInitProbability(Card card1, Card card2) {
+    cout << "Calculating " << card1 << card2 << endl;
+    shared_ptr<CardPool> cp = make_shared<CardPool>();
+    PokerSuite mySuite(card1, card2, cp);
+    PokerRiver pr(cp);
+    int wins, loses, tot;
+    DO_A_ROUND;
+    return make_pair(wins*1.0/tot, loses*1.0/tot);
+}
+
+map<double, pair<pair<Card, Card>, pair<double, double>>> initProb;
+void printAllInitProb() {
+    for(int i=1; i<=13; i++) {
+        Card card1(Card::Suit::DIAMOND, RECOVER_FROM_REAL_NUM(i));
+        for(int j=i; j<=13; j++) {
+            Card card2(Card::Suit::CLUB, RECOVER_FROM_REAL_NUM(j));
+            pair<double, double> res = printInitProbability(card1, card2);
+            initProb[res.first - res.second] = make_pair(make_pair(card1, card2), res);
+            if(j == i) continue;
+            Card card2_sameSuit(Card::Suit::DIAMOND, RECOVER_FROM_REAL_NUM(j));
+            res = printInitProbability(card1, card2_sameSuit);
+            initProb[res.first - res.second] = make_pair(make_pair(card1, card2_sameSuit), res);
+        }
+    }
+
+    for(const auto &p: initProb) {
+        cout << p.second.first.first << p.second.first.second << ": " << p.first << "(" << p.second.second.first << " - " << p.second.second.second << ")" << endl;
+    }
+}
+
 
 int main() {
-    runTestCases();
-    printRandomRiver();
+    //runTestCases();
+    //printRandomRiver();
 
+    printCompareResult({"KsJs"},{{"QhTd"}}, make_shared<PokerRiver>(Cards{"3s5sQc"}));
     /*
     printCompareResult({"AsQh"},{{"QcQd"}});
     printCompareResult({"AsQh"},{{"QcQs"}});
     printCompareResult({"AsAd"},{{"KhKd"}});
     printCompareResult({"AcQd"},{{"3s7s"}});
     printCompareResult({"AcQd"},{{"3s7h"}});
-    */
+*/
 
+    /*printAllInitProb();
+    return 0;*/
 
     while(1) {
         interact();

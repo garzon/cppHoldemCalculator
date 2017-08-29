@@ -2,7 +2,7 @@
 #define CARDPOOL_HPP
 
 #include <random>
-#include "card.hpp"
+#include "cards.hpp"
 
 class CardPool {
     std::random_device rd;
@@ -33,6 +33,12 @@ public:
         swap_back(p);
     }
 
+    void pickout(const Cards &cards) {
+        for(int i=0; i<cards.getCardNum(); i++) {
+            pickout(cards.cards[i]);
+        }
+    }
+
     void put_back(int num=1) {
         realUpperBound += num;
     }
@@ -47,6 +53,13 @@ public:
         Card ret = *p;
         swap_back(p);
         return ret;
+    }
+
+    bool notAvailable(Card card) const {
+        for(int i=realUpperBound+1; i<52; i++) {
+            if(card == cards[i]) return true;
+        }
+        return false;
     }
 };
 
