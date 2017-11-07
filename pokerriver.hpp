@@ -9,22 +9,22 @@
 #include "cardpool.hpp"
 
 struct PokerRiver: public Cards {
-    std::shared_ptr<CardPool> cp;
+    std::shared_ptr<CardPool> card_pool;
 
-    PokerRiver(std::shared_ptr<CardPool> _cp, Cards cards=Cards()):
-        Cards(cards), cp(_cp)
+    PokerRiver(std::shared_ptr<CardPool> _card_pool, Cards cards=Cards()):
+        Cards(cards), card_pool(_card_pool)
     {
-        cp->pickout(cards);
+        card_pool->pickout(cards);
     }
 
-    PokerRiver(Cards cards):
-        Cards(cards), cp(std::make_shared<CardPool>())
+    PokerRiver(Cards cards=Cards()):
+        Cards(cards), card_pool(std::make_shared<CardPool>())
     {
-        cp->pickout(cards);
+        card_pool->pickout(cards);
     }
 
     inline bool hasCard(Card a, int showedCard=-1) const {
-        if(cp->notAvailable(a)) return true;
+        if(card_pool->notAvailable(a)) return true;
         if(showedCard == -1) showedCard = cardNum;
         for(int i=0; i<showedCard; i++)
             if(cards[i] == a) return true;
@@ -52,10 +52,10 @@ struct PokerRiver: public Cards {
             return;
         }
         for(int i=0; i<times; i++) {
-            cards[cardNum++] = cp->pick();
+            cards[cardNum++] = card_pool->pick();
             genRandomRiver(callback, 1, maxDepth);
             cardNum--;
-            cp->put_back();
+            card_pool->put_back();
         }
     }
 
